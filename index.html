@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Mooring Family Calendar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Rokkitt:wght@500;700&display=swap">
+<style>
+/* Layout: a working month calendar beside "who's there this weekend" and the upcoming list; one column on a phone. */
+:root {
+  --bg: #eef1ea; --surface: #fbfcf8; --sunk: #e2e7dc; --line: #c9d0c1;
+  --fg: #1d2a24; --muted: #56635b;
+  --accent: #24483c; --on-accent: #f6f8f2;
+  --ranch: #8f4f12; --on-ranch: #fff8ef; --ranch-soft: #f3e3cf;
+  --lake: #17627f; --on-lake: #f0fafe; --lake-soft: #d5e9f1;
+  --today: #b8860b; --danger: #a4291f; --notice: #f6ecc9; --on-notice: #4b3b05;
+  --display: "Rokkitt", Rockwell, Georgia, serif;
+  --body: "Atkinson Hyperlegible", Verdana, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141b18; --surface: #1d2622; --sunk: #27322d; --line: #3a4740;
+  --fg: #e8eee7; --muted: #a4b1a8;
+  --accent: #a9cfb9; --on-accent: #12201a;
+  --ranch: #e0a463; --on-ranch: #2a1703; --ranch-soft: #40301d;
+  --lake: #7cc4de; --on-lake: #06212c; --lake-soft: #1d3a46;
+  --today: #e7bd4f; --danger: #f0908a; --notice: #3e3414; --on-notice: #f4e4ad;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #141b18; --surface: #1d2622; --sunk: #27322d; --line: #3a4740;
+  --fg: #e8eee7; --muted: #a4b1a8;
+  --accent: #a9cfb9; --on-accent: #12201a;
+  --ranch: #e0a463; --on-ranch: #2a1703; --ranch-soft: #40301d;
+  --lake: #7cc4de; --on-lake: #06212c; --lake-soft: #1d3a46;
+  --today: #e7bd4f; --danger: #f0908a; --notice: #3e3414; --on-notice: #f4e4ad;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 400 16px/1.45 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--today); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; }
+
+.wrap { max-width: 1160px; margin: 0 auto; display: grid; gap: 18px; }
+.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+.top h1 { font-size: clamp(30px, 6vw, 44px); line-height: 1.02; color: var(--accent); }
+.top p { margin: 4px 0 0; color: var(--muted); }
+.btn {
+  min-height: 46px; padding: 0 18px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--surface); font-weight: 700;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn.danger { background: var(--danger); color: var(--surface); border-color: var(--danger); }
+.btn.quiet { background: transparent; }
+.btn:disabled { opacity: .6; cursor: default; }
+
+.banner { background: var(--notice); color: var(--on-notice); padding: 10px 14px; border-radius: 6px; }
+
+.tabs { display: flex; gap: 4px; background: var(--sunk); padding: 4px; border-radius: 8px; width: fit-content; max-width: 100%; }
+.tabs button {
+  border: 0; background: transparent; min-height: 40px; padding: 0 14px; border-radius: 5px;
+  font-weight: 700; color: var(--muted); white-space: nowrap;
+}
+.tabs button[aria-pressed="true"] { background: var(--surface); color: var(--fg); }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.side { display: grid; gap: 18px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+
+/* Calendar */
+.cal-head { display: flex; align-items: center; gap: 6px; padding: 12px; }
+.cal-head h2 { font-size: 26px; flex: 1; min-width: 0; }
+.nav { width: 44px; height: 44px; border-radius: 6px; border: 1px solid var(--line); background: transparent; font-size: 20px; line-height: 1; }
+.nav:hover { border-color: var(--accent); }
+.today-btn { min-height: 44px; padding: 0 12px; }
+.dow, .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.dow { border-top: 1px solid var(--line); }
+.dow span { padding: 6px 0; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.week { border-top: 1px solid var(--line); position: relative; }
+.day {
+  border: 0; border-right: 1px solid var(--line); background: transparent; padding: 4px 0 0 6px;
+  display: flex; align-items: flex-start; justify-content: flex-start; min-height: 92px;
+  font-variant-numeric: tabular-nums; grid-row: 1 / -1; align-self: stretch;
+}
+.day:nth-child(7) { border-right: 0; }
+.day:hover { background: var(--sunk); }
+.day.out { color: var(--muted); background: var(--bg); }
+.day.wknd:not(.out) { background: color-mix(in srgb, var(--sunk) 45%, transparent); }
+.day.wknd:not(.out):hover { background: var(--sunk); }
+.day .n { display: inline-flex; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 50%; font-size: 14px; }
+.day.today .n { background: var(--today); color: var(--surface); font-weight: 700; }
+.day.sel { box-shadow: inset 0 0 0 3px var(--accent); }
+.bar {
+  position: relative; z-index: 1; border: 0; height: 24px; margin: 0 3px 2px; padding: 0 6px;
+  border-radius: 4px; font-size: 13px; font-weight: 700; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.bar.ranch { background: var(--ranch); color: var(--on-ranch); }
+.bar.lake { background: var(--lake); color: var(--on-lake); }
+.bar.tent { background: var(--surface); border: 2px dashed currentColor; line-height: 1; }
+.bar.tent.ranch { color: var(--ranch); }
+.bar.tent.lake { color: var(--lake); }
+.bar.cont-l { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.bar.cont-r { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.cal-foot { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; padding: 10px 12px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+.legend { display: flex; gap: 14px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.legend .r { background: var(--ranch); } .legend .l { background: var(--lake); }
+.legend .t { background: transparent; border: 2px dashed var(--muted); }
+.legend { flex-wrap: wrap; }
+#legendPlaces { display: contents; }
+.pick-hint { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: var(--notice); color: var(--on-notice); font-weight: 700; }
+.pick-hint button { background: transparent; border: 1px solid currentColor; border-radius: 5px; min-height: 36px; padding: 0 10px; color: inherit; }
+
+/* Weekend and list */
+.block { padding: 14px; display: grid; gap: 10px; }
+.block h2 { font-size: 22px; }
+.wk { display: grid; gap: 6px; }
+.wk + .wk { border-top: 1px solid var(--line); padding-top: 10px; }
+.wk-title { font-weight: 700; display: flex; justify-content: space-between; gap: 8px; }
+.wk-title span { font-weight: 400; color: var(--muted); white-space: nowrap; }
+.wk-row { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 8px; font-size: 15px; }
+.wk-row b.ranch { color: var(--ranch); } .wk-row b.lake { color: var(--lake); }
+.who { display: flex; flex-wrap: wrap; gap: 2px 10px; min-width: 0; }
+.who button { border: 0; background: transparent; padding: 0; text-align: left; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.who .open { color: var(--muted); }
+.who .sum { color: var(--muted); }
+
+.list { display: grid; gap: 0; }
+.item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; width: 100%;
+  background: transparent; border: 0; border-top: 1px solid var(--line); padding: 10px 0; text-align: left;
+}
+.item:first-child { border-top: 0; padding-top: 0; }
+.item:hover .item-name { text-decoration: underline; }
+.item-name { font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
+.item-count { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.item-meta { grid-column: 1 / -1; font-size: 14px; color: var(--muted); }
+.tag { display: inline-block; padding: 0 7px; border-radius: 4px; font-size: 13px; font-weight: 700; margin-right: 6px; }
+.tag.ranch { background: var(--ranch-soft); color: var(--ranch); }
+.tag.lake { background: var(--lake-soft); color: var(--lake); }
+.tag.tent { background: transparent; border: 1px dashed var(--muted); color: var(--fg); }
+.who button.tent { font-style: italic; }
+.empty { color: var(--muted); margin: 0; }
+
+/* Dialog */
+dialog {
+  border: 1px solid var(--line); border-radius: 10px; padding: 0; background: var(--surface); color: var(--fg);
+  width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 32px);
+}
+dialog::backdrop { background: rgb(10 20 15 / .55); }
+.dlg { padding: 18px; display: grid; gap: 14px; }
+.dlg-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.dlg-head h2 { font-size: 26px; line-height: 1.1; overflow-wrap: anywhere; min-width: 0; }
+.x { flex: none; width: 44px; height: 44px; margin: -8px -8px 0 0; border: 0; background: transparent; font-size: 24px; line-height: 1; border-radius: 6px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field > label, fieldset legend { font-weight: 700; font-size: 15px; padding: 0; }
+.field input, .field textarea {
+  width: 100%; min-height: 46px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); font-size: 16px; min-width: 0;
+}
+.field textarea { min-height: 72px; resize: vertical; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 4px; }
+.choice { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.choice label { display: flex; align-items: center; justify-content: center; min-height: 46px; border: 1px solid var(--line); border-radius: 6px; font-weight: 700; cursor: pointer; text-align: center; }
+.choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.choice input:focus-visible + label { outline: 3px solid var(--today); outline-offset: 2px; }
+.choice input[value="ranch"]:checked + label { background: var(--ranch); color: var(--on-ranch); border-color: var(--ranch); }
+.choice input[value="lake"]:checked + label { background: var(--lake); color: var(--on-lake); border-color: var(--lake); }
+.choice input[value="confirmed"]:checked + label { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.choice input[value="tentative"]:checked + label { background: var(--notice); color: var(--on-notice); border: 2px dashed var(--on-notice); }
+.help { font-size: 14px; color: var(--muted); }
+.also { background: var(--notice); color: var(--on-notice); padding: 8px 10px; border-radius: 6px; font-size: 15px; }
+.err { color: var(--danger); font-weight: 700; margin: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.facts { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 6px 10px; margin: 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+
+@media (max-width: 900px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .side { display: contents; }
+  #weekend { order: -1; }
+}
+@media (max-width: 560px) {
+  .top .btn { width: 100%; }
+  .tabs { width: 100%; }
+  .tabs button { flex: 1; padding: 0 6px; }
+  .day { min-height: 72px; padding-left: 2px; }
+  .bar { height: 22px; font-size: 12px; padding: 0 3px; margin-inline: 1px; }
+  .cal-head h2 { font-size: 22px; }
+}
+@media (prefers-reduced-motion: no-preference) { .btn, .day { transition: background-color .12s, border-color .12s; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Mooring Family Calendar</h1>
+      <p>See who's at the ranch and the lakehouse, and put your name down.</p>
+    </div>
+    <button class="btn primary" id="bookBtn" type="button">Book dates</button>
+  </header>
+
+  <div class="banner" id="demoBanner" hidden>Preview only. These are sample bookings, and anything you add disappears when you close the page.</div>
+  <div class="banner" id="errorBanner" role="alert" hidden></div>
+
+  <div class="tabs" role="group" aria-label="Choose a property">
+    <button type="button" data-view="all">Both</button>
+    <button type="button" data-view="ranch">Ranch</button>
+    <button type="button" data-view="lake">Lakehouse</button>
+  </div>
+
+  <div class="main">
+    <section class="panel" aria-label="Calendar">
+      <div class="cal-head">
+        <h2 id="monthTitle" aria-live="polite"></h2>
+        <button class="nav today-btn" id="todayBtn" type="button" style="width:auto">Today</button>
+        <button class="nav" id="prevBtn" type="button" aria-label="Previous month">&#8249;</button>
+        <button class="nav" id="nextBtn" type="button" aria-label="Next month">&#8250;</button>
+      </div>
+      <div class="pick-hint" id="pickHint" hidden>
+        <span id="pickText"></span>
+        <button type="button" id="pickCancel">Cancel</button>
+      </div>
+      <div class="dow" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+      <div id="grid"></div>
+      <div class="cal-foot">
+        <span>Tap your arrival day, then your departure day.</span>
+        <span class="legend"><span id="legendPlaces"><span><i class="r"></i>R = Ranch</span><span><i class="l"></i>L = Lakehouse</span></span><span><i class="t"></i>? = Tentative</span></span>
+      </div>
+    </section>
+
+    <div class="side">
+      <section class="panel block" id="weekend" aria-label="Weekends">
+        <h2>Who's there</h2>
+        <div id="weekendBody"></div>
+      </section>
+      <section class="panel block" aria-label="Upcoming stays">
+        <h2>Coming up</h2>
+        <div class="list" id="list"></div>
+      </section>
+      <p class="help" id="status" aria-live="polite" style="margin:0"></p>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <form class="dlg" id="form" novalidate hidden>
+    <div class="dlg-head">
+      <h2 id="dlgTitle">Book dates</h2>
+      <button class="x" type="button" data-close aria-label="Close">&times;</button>
+    </div>
+    <fieldset>
+      <legend>Where</legend>
+      <div class="choice">
+        <input type="radio" name="place" id="placeRanch" value="ranch"><label for="placeRanch">The Ranch</label>
+        <input type="radio" name="place" id="placeLake" value="lake"><label for="placeLake">The Lakehouse</label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Are the dates set?</legend>
+      <div class="choice">
+        <input type="radio" name="status" id="statusConfirmed" value="confirmed"><label for="statusConfirmed">Confirmed</label>
+        <input type="radio" name="status" id="statusTentative" value="tentative"><label for="statusTentative">Tentative</label>
+      </div>
+    </fieldset>
+    <div class="field">
+      <label for="name">Your name</label>
+      <input id="name" type="text" maxlength="60" autocomplete="name" required>
+    </div>
+    <div class="field">
+      <label for="people">How many people, counting you</label>
+      <input id="people" type="number" inputmode="numeric" min="1" max="99" step="1" required>
+    </div>
+    <div class="two">
+      <div class="field"><label for="arrive">Arrive</label><input id="arrive" type="date" required></div>
+      <div class="field"><label for="depart">Leave</label><input id="depart" type="date" required></div>
+    </div>
+    <div class="field">
+      <label for="notes">Notes (optional)</label>
+      <textarea id="notes" maxlength="300" placeholder="Arriving late Friday, bringing the dogs"></textarea>
+    </div>
+    <div class="also" id="also" hidden></div>
+    <p class="err" id="formErr" role="alert" hidden></p>
+    <div class="actions">
+      <button class="btn quiet" type="button" data-close>Cancel</button>
+      <button class="btn primary" type="submit" id="saveBtn">Save booking</button>
+    </div>
+  </form>
+
+  <div class="dlg" id="detail" hidden>
+    <div class="dlg-head">
+      <h2 id="detailTitle"></h2>
+      <button class="x" type="button" data-close aria-label="Close">&times;</button>
+    </div>
+    <dl class="facts" id="facts"></dl>
+    <p class="err" id="detailErr" role="alert" hidden></p>
+    <div class="actions" id="detailActions">
+      <button class="btn quiet" type="button" id="removeBtn">Remove</button>
+      <button class="btn quiet" type="button" id="editBtn">Edit</button>
+      <button class="btn primary" type="button" id="confirmStayBtn">Mark confirmed</button>
+    </div>
+    <div class="actions" id="confirmActions" hidden>
+      <span style="flex:1 1 100%">Remove this booking from the calendar?</span>
+      <button class="btn quiet" type="button" id="keepBtn">Keep it</button>
+      <button class="btn danger" type="button" id="confirmRemoveBtn">Yes, remove</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+/* Paste the Google Apps Script web app URL between the quotes. */
+var API_URL = "";
+
+(function () {
+  'use strict';
+  var PLACES = { ranch: { label: 'The Ranch', short: 'Ranch', code: 'R' }, lake: { label: 'The Lakehouse', short: 'Lakehouse', code: 'L' } };
+  var DEMO = !API_URL;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var state = {
+    bookings: [], view: 'all', month: null, pick: null,
+    editing: null, showing: null, loaded: false
+  };
+
+  /* ---------- dates: plain YYYY-MM-DD strings, so nothing shifts with time zones ---------- */
+  function iso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function parse(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function add(s, n) { var d = parse(s); d.setDate(d.getDate() + n); return iso(d); }
+  function todayIso() { return iso(new Date()); }
+  function fmt(s, opts) { return parse(s).toLocaleDateString('en-US', opts); }
+  function fmtDay(s) { return fmt(s, { weekday: 'short', month: 'short', day: 'numeric' }); }
+  function fmtRange(a, b) {
+    if (a === b) return fmtDay(a);
+    return fmtDay(a) + ' to ' + fmtDay(b);
+  }
+  function isTent(b) { return b.status === 'tentative'; }
+  function peopleText(n) { return n + (n === 1 ? ' person' : ' people'); }
+  function nights(a, b) { return Math.round((parse(b) - parse(a)) / 864e5); }
+
+  /* A family leaving on the day another arrives does not count as overlapping. */
+  function overlaps(b, start, end) {
+    if (b.arrive === b.depart) return b.arrive >= start && b.arrive <= end;
+    if (start === end) return b.arrive <= start && b.depart > start;
+    return b.arrive < end && b.depart > start;
+  }
+  function visible() {
+    return state.bookings.filter(function (b) { return state.view === 'all' || b.place === state.view; });
+  }
+
+  /* ---------- storage ---------- */
+  function store(key, value) {
+    try {
+      if (value === undefined) return window.localStorage.getItem(key);
+      window.localStorage.setItem(key, value);
+    } catch (e) { return null; }
+  }
+
+  function demoData() {
+    var t = todayIso(), dow = parse(t).getDay();
+    var fri = add(t, dow === 0 ? -2 : 5 - dow);
+    return [
+      { id: 'd1', place: 'ranch', name: 'Sample: Jack', people: 6, arrive: fri, depart: add(fri, 2), notes: 'Sample booking' },
+      { id: 'd2', place: 'lake', name: 'Sample: Beth', people: 4, arrive: add(fri, 7), depart: add(fri, 9), notes: '' },
+      { id: 'd3', place: 'ranch', name: 'Sample: Ann', people: 2, arrive: add(fri, 6), depart: add(fri, 10), notes: 'Sample booking', status: 'tentative' },
+      { id: 'd4', place: 'lake', name: 'Sample: Tom', people: 8, arrive: add(fri, 20), depart: add(fri, 23), notes: '', status: 'tentative' }
+    ];
+  }
+
+  function api(action, payload) {
+    if (DEMO) {
+      var list = state.bookings.slice();
+      if (action === 'list') list = state.loaded ? list : demoData();
+      if (action === 'create') list.push(Object.assign({ id: 'd' + Date.now() }, payload.booking));
+      if (action === 'update') list = list.map(function (b) { return b.id === payload.id ? Object.assign({ id: b.id }, payload.booking) : b; });
+      if (action === 'remove') list = list.filter(function (b) { return b.id !== payload.id; });
+      return Promise.resolve(list);
+    }
+    var request = action === 'list'
+      ? fetch(API_URL + '?action=list', { redirect: 'follow' })
+      : fetch(API_URL, {
+          method: 'POST', redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(Object.assign({ action: action }, payload))
+        });
+    return request.then(function (res) {
+      if (!res.ok) throw friendly('The calendar did not respond. Try again in a minute.');
+      return res.json();
+    }).then(function (data) {
+      if (!data.ok) throw friendly(data.message || 'That did not save. Try again.');
+      return data.bookings;
+    });
+  }
+
+  function friendly(message) { var e = new Error(message); e.friendly = true; return e; }
+  function saveError(err) { return err && err.friendly ? err.message : 'That did not save. Check your connection and try again.'; }
+
+  function refresh() {
+    return api('list').then(function (list) {
+      apply(list);
+      $('errorBanner').hidden = true;
+    }).catch(function () {
+      $('errorBanner').hidden = false;
+      $('errorBanner').textContent = state.loaded
+        ? 'Could not check for new bookings. What you see may be out of date.'
+        : 'Could not load the calendar. Check your connection and refresh the page.';
+    });
+  }
+  function apply(list) {
+    state.bookings = list;
+    state.loaded = true;
+    render();
+    $('status').textContent = DEMO ? '' : 'Last updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    if (!DEMO) store('mooring-cache', JSON.stringify(list));
+  }
+
+  /* ---------- rendering ---------- */
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function render() {
+    document.querySelectorAll('.tabs button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.view === state.view));
+    });
+    $('legendPlaces').hidden = state.view !== 'all';
+    renderCalendar();
+    renderWeekends();
+    renderList();
+    renderPick();
+  }
+
+  function renderCalendar() {
+    var first = state.month;
+    $('monthTitle').textContent = first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    var grid = $('grid');
+    grid.textContent = '';
+    var today = todayIso();
+    var cursor = new Date(first.getFullYear(), first.getMonth(), 1 - first.getDay());
+    var list = visible();
+    do {
+      var weekStart = iso(cursor), weekEnd = add(weekStart, 6);
+      grid.appendChild(renderWeek(weekStart, weekEnd, list, today, first.getMonth()));
+      cursor.setDate(cursor.getDate() + 7);
+    } while (cursor.getMonth() === first.getMonth());
+  }
+
+  function renderWeek(weekStart, weekEnd, list, today, month) {
+    var week = el('div', 'week');
+    for (var i = 0; i < 7; i++) {
+      var d = add(weekStart, i);
+      var dObj = parse(d);
+      var cls = 'day';
+      if (dObj.getMonth() !== month) cls += ' out';
+      if (d === today) cls += ' today';
+      if (i === 0 || i >= 5) cls += ' wknd';
+      if (d === state.pick) cls += ' sel';
+      var btn = el('button', cls);
+      btn.type = 'button';
+      btn.style.gridColumn = String(i + 1);
+      btn.dataset.date = d;
+      btn.setAttribute('aria-label', dObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }));
+      btn.appendChild(el('span', 'n', String(dObj.getDate())));
+      btn.addEventListener('click', onDayClick);
+      week.appendChild(btn);
+    }
+
+    var segs = list.filter(function (b) { return b.arrive <= weekEnd && b.depart >= weekStart; })
+      .sort(function (a, b) { return a.arrive < b.arrive ? -1 : a.arrive > b.arrive ? 1 : b.depart.localeCompare(a.depart); });
+
+    /* Stack stays into rows so that none overlap on the same day. */
+    var lanes = [];
+    segs.forEach(function (b) {
+      var from = b.arrive < weekStart ? weekStart : b.arrive;
+      var to = b.depart > weekEnd ? weekEnd : b.depart;
+      var lane = 0;
+      while (lanes[lane] && lanes[lane] >= from) lane++;
+      lanes[lane] = to;
+      var bar = el('button', 'bar ' + b.place, (state.view === 'all' ? PLACES[b.place].code + ' \u00b7 ' : '') + b.name + ' \u00b7 ' + b.people);
+      if (isTent(b)) { bar.className += ' tent'; bar.textContent = '? ' + bar.textContent; }
+      if (b.arrive < weekStart) bar.className += ' cont-l';
+      if (b.depart > weekEnd) bar.className += ' cont-r';
+      bar.type = 'button';
+      bar.style.gridColumn = (nights(weekStart, from) + 1) + ' / ' + (nights(weekStart, to) + 2);
+      bar.style.gridRow = String(lane + 2);
+      bar.setAttribute('aria-label', b.name + (isTent(b) ? ', tentative, ' : ', ') + peopleText(b.people) + ', ' + PLACES[b.place].label + ', ' + fmtRange(b.arrive, b.depart));
+      bar.addEventListener('click', function () { showDetail(b); });
+      week.appendChild(bar);
+    });
+    week.style.gridTemplateRows = '32px' + ' 26px'.repeat(lanes.length) + ' minmax(10px, 1fr)';
+    return week;
+  }
+
+  function onDayClick(e) {
+    var d = e.currentTarget.dataset.date;
+    if (!state.pick) { state.pick = d; render(); return; }
+    var a = state.pick < d ? state.pick : d;
+    var b = state.pick < d ? d : state.pick;
+    state.pick = null;
+    render();
+    openForm(null, { arrive: a, depart: b });
+  }
+
+  function renderPick() {
+    $('pickHint').hidden = !state.pick;
+    if (state.pick) $('pickText').textContent = 'Arriving ' + fmtDay(state.pick) + '. Now tap the day you leave.';
+  }
+
+  function weekendOf(today) {
+    var dow = parse(today).getDay();
+    return add(today, dow === 0 ? -2 : 5 - dow);
+  }
+
+  function renderWeekends() {
+    var body = $('weekendBody');
+    body.textContent = '';
+    var wrap = el('div', '');
+    wrap.style.display = 'grid';
+    wrap.style.gap = '10px';
+    var fri = weekendOf(todayIso());
+    [['This weekend', fri], ['Next weekend', add(fri, 7)]].forEach(function (w) {
+      var sun = add(w[1], 2);
+      var box = el('div', 'wk');
+      var title = el('div', 'wk-title');
+      title.appendChild(document.createTextNode(w[0]));
+      title.appendChild(el('span', '', fmt(w[1], { month: 'short', day: 'numeric' }) + ' to ' + fmt(sun, { month: 'short', day: 'numeric' })));
+      box.appendChild(title);
+      Object.keys(PLACES).forEach(function (key) {
+        if (state.view !== 'all' && state.view !== key) return;
+        var row = el('div', 'wk-row');
+        row.appendChild(el('b', key, PLACES[key].short));
+        var who = el('div', 'who');
+        var here = state.bookings.filter(function (b) { return b.place === key && overlaps(b, w[1], sun); });
+        if (!here.length) who.appendChild(el('span', 'open', state.loaded ? 'Open' : '…'));
+        here.forEach(function (b) {
+          var n = el('button', isTent(b) ? 'tent' : '', b.name + ' (' + b.people + (isTent(b) ? ', tentative)' : ')'));
+          n.type = 'button';
+          n.addEventListener('click', function () { showDetail(b); });
+          who.appendChild(n);
+        });
+        if (here.length > 1) {
+          var sure = here.reduce(function (s, b) { return s + (isTent(b) ? 0 : b.people); }, 0);
+          var maybe = here.reduce(function (s, b) { return s + (isTent(b) ? b.people : 0); }, 0);
+          who.appendChild(el('span', 'sum', [sure ? sure + ' confirmed' : '', maybe ? maybe + ' tentative' : ''].filter(Boolean).join(', ')));
+        }
+        row.appendChild(who);
+        box.appendChild(row);
+      });
+      wrap.appendChild(box);
+    });
+    body.appendChild(wrap);
+  }
+
+  function renderList() {
+    var list = $('list');
+    list.textContent = '';
+    var today = todayIso();
+    var items = visible().filter(function (b) { return b.depart >= today; })
+      .sort(function (a, b) { return a.arrive.localeCompare(b.arrive); });
+    if (!items.length) {
+      list.appendChild(el('p', 'empty', state.loaded
+        ? 'No one has booked yet. Tap a day on the calendar to add the first stay.'
+        : 'Loading bookings…'));
+      return;
+    }
+    items.forEach(function (b) {
+      var item = el('button', 'item');
+      item.type = 'button';
+      item.appendChild(el('span', 'item-name', b.name));
+      item.appendChild(el('span', 'item-count', peopleText(b.people)));
+      var meta = el('span', 'item-meta');
+      meta.appendChild(el('span', 'tag ' + b.place, PLACES[b.place].short));
+      if (isTent(b)) meta.appendChild(el('span', 'tag tent', 'Tentative'));
+      meta.appendChild(document.createTextNode(fmtRange(b.arrive, b.depart)));
+      item.appendChild(meta);
+      item.addEventListener('click', function () { showDetail(b); });
+      list.appendChild(item);
+    });
+  }
+
+  /* ---------- dialog ---------- */
+  function openDlg(which) {
+    $('form').hidden = which !== 'form';
+    $('detail').hidden = which !== 'detail';
+    if (!$('dlg').open) $('dlg').showModal();
+  }
+  function closeDlg() { if ($('dlg').open) $('dlg').close(); }
+
+  function openForm(booking, prefill) {
+    state.editing = booking;
+    var f = booking || prefill || {};
+    $('dlgTitle').textContent = booking ? 'Edit booking' : 'Book dates';
+    $('saveBtn').textContent = booking ? 'Save changes' : 'Save booking';
+    var place = f.place || (state.view !== 'all' ? state.view : store('mooring-place') || '');
+    $('placeRanch').checked = place === 'ranch';
+    $('placeLake').checked = place === 'lake';
+    $('statusTentative').checked = f.status === 'tentative';
+    $('statusConfirmed').checked = f.status !== 'tentative';
+    $('name').value = f.name || store('mooring-name') || '';
+    $('people').value = f.people || '';
+    $('arrive').value = f.arrive || '';
+    $('depart').value = f.depart || '';
+    $('notes').value = f.notes || '';
+    $('formErr').hidden = true;
+    $('saveBtn').disabled = false;
+    updateAlso();
+    openDlg('form');
+  }
+
+  function formPlace() {
+    var c = document.querySelector('input[name="place"]:checked');
+    return c ? c.value : '';
+  }
+
+  function updateAlso() {
+    var place = formPlace(), a = $('arrive').value, d = $('depart').value;
+    var box = $('also');
+    box.hidden = true;
+    if (!place || !a || !d || d < a) return;
+    var others = state.bookings.filter(function (b) {
+      return b.place === place && (!state.editing || b.id !== state.editing.id) && overlaps(b, a, d);
+    });
+    if (!others.length) return;
+    box.textContent = 'Also at ' + PLACES[place].label.replace('The ', 'the ') + ' during those days: ' +
+      others.map(function (b) { return b.name + ' (' + b.people + ', ' + (isTent(b) ? 'tentative, ' : '') + fmtRange(b.arrive, b.depart) + ')'; }).join('; ') +
+      '. You can still save this.';
+    box.hidden = false;
+  }
+
+  function submitForm(e) {
+    e.preventDefault();
+    var b = {
+      place: formPlace(), name: $('name').value.trim(), people: Number($('people').value),
+      arrive: $('arrive').value, depart: $('depart').value, notes: $('notes').value.trim(),
+      status: $('statusTentative').checked ? 'tentative' : 'confirmed'
+    };
+    var problem = !b.place ? 'Choose the ranch or the lakehouse.'
+      : !b.name ? 'Enter your name.'
+      : !(b.people >= 1 && b.people <= 99) || Math.floor(b.people) !== b.people ? 'Enter how many people are coming, from 1 to 99.'
+      : !b.arrive || !b.depart ? 'Enter the days you arrive and leave.'
+      : b.depart < b.arrive ? 'The day you leave has to be on or after the day you arrive.' : '';
+    if (problem) return showErr('formErr', problem);
+
+    $('saveBtn').disabled = true;
+    $('saveBtn').textContent = 'Saving…';
+    store('mooring-name', b.name);
+    store('mooring-place', b.place);
+    var call = state.editing ? api('update', { id: state.editing.id, booking: b }) : api('create', { booking: b });
+    call.then(function (list) {
+      apply(list);
+      state.month = new Date(parse(b.arrive).getFullYear(), parse(b.arrive).getMonth(), 1);
+      render();
+      closeDlg();
+    }).catch(function (err) {
+      $('saveBtn').disabled = false;
+      $('saveBtn').textContent = state.editing ? 'Save changes' : 'Save booking';
+      showErr('formErr', saveError(err));
+    });
+  }
+
+  function showErr(id, msg) { $(id).textContent = msg; $(id).hidden = false; }
+
+  function showDetail(b) {
+    state.showing = b;
+    $('detailTitle').textContent = b.name;
+    var facts = $('facts');
+    facts.textContent = '';
+    var n = nights(b.arrive, b.depart);
+    var rows = [
+      ['Status', isTent(b) ? 'Tentative' : 'Confirmed'],
+      ['Where', PLACES[b.place].label],
+      ['When', fmtRange(b.arrive, b.depart) + (n ? ' (' + n + (n === 1 ? ' night)' : ' nights)') : '')],
+      ['People', String(b.people)]
+    ];
+    if (b.notes) rows.push(['Notes', b.notes]);
+    rows.forEach(function (r) { facts.appendChild(el('dt', '', r[0])); facts.appendChild(el('dd', '', r[1])); });
+    $('detailActions').hidden = false;
+    $('confirmActions').hidden = true;
+    $('detailErr').hidden = true;
+    $('confirmRemoveBtn').disabled = false;
+    $('confirmRemoveBtn').textContent = 'Yes, remove';
+    $('confirmStayBtn').hidden = !isTent(b);
+    $('confirmStayBtn').disabled = false;
+    $('confirmStayBtn').textContent = 'Mark confirmed';
+    $('editBtn').className = isTent(b) ? 'btn quiet' : 'btn primary';
+    openDlg('detail');
+  }
+
+  /* ---------- wiring ---------- */
+  document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', closeDlg); });
+  document.querySelectorAll('.tabs button').forEach(function (b) {
+    b.addEventListener('click', function () { state.view = b.dataset.view; store('mooring-view', state.view); render(); });
+  });
+  $('bookBtn').addEventListener('click', function () { state.pick = null; render(); openForm(null, null); });
+  $('prevBtn').addEventListener('click', function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); render(); });
+  $('nextBtn').addEventListener('click', function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + 1, 1); render(); });
+  $('todayBtn').addEventListener('click', function () { var t = new Date(); state.month = new Date(t.getFullYear(), t.getMonth(), 1); render(); });
+  $('pickCancel').addEventListener('click', function () { state.pick = null; render(); });
+  $('form').addEventListener('submit', submitForm);
+  ['arrive', 'depart', 'placeRanch', 'placeLake'].forEach(function (id) { $(id).addEventListener('change', updateAlso); });
+  $('arrive').addEventListener('change', function () {
+    if ($('arrive').value && (!$('depart').value || $('depart').value < $('arrive').value)) { $('depart').value = $('arrive').value; updateAlso(); }
+  });
+  $('editBtn').addEventListener('click', function () { openForm(state.showing); });
+  $('confirmStayBtn').addEventListener('click', function () {
+    var btn = $('confirmStayBtn'), b = state.showing;
+    btn.disabled = true; btn.textContent = 'Saving\u2026';
+    api('update', { id: b.id, booking: {
+      place: b.place, name: b.name, people: b.people, arrive: b.arrive, depart: b.depart, notes: b.notes, status: 'confirmed'
+    } }).then(function (list) { apply(list); closeDlg(); }).catch(function (err) {
+      btn.disabled = false; btn.textContent = 'Mark confirmed';
+      showErr('detailErr', saveError(err));
+    });
+  });
+  $('removeBtn').addEventListener('click', function () { $('detailActions').hidden = true; $('confirmActions').hidden = false; });
+  $('keepBtn').addEventListener('click', function () { $('detailActions').hidden = false; $('confirmActions').hidden = true; });
+  $('confirmRemoveBtn').addEventListener('click', function () {
+    var btn = $('confirmRemoveBtn');
+    btn.disabled = true; btn.textContent = 'Removing…';
+    api('remove', { id: state.showing.id }).then(function (list) { apply(list); closeDlg(); }).catch(function (err) {
+      btn.disabled = false; btn.textContent = 'Yes, remove';
+      showErr('detailErr', saveError(err));
+    });
+  });
+
+  /* ---------- start ---------- */
+  var now = new Date();
+  state.month = new Date(now.getFullYear(), now.getMonth(), 1);
+  var savedView = store('mooring-view');
+  if (savedView === 'ranch' || savedView === 'lake' || savedView === 'all') state.view = savedView;
+  $('demoBanner').hidden = !DEMO;
+  if (!DEMO) {
+    try {
+      var cached = JSON.parse(store('mooring-cache') || 'null');
+      if (Array.isArray(cached)) { state.bookings = cached; state.loaded = true; }
+    } catch (e) { /* no saved copy to show */ }
+  }
+  render();
+  refresh();
+  if (!DEMO) {
+    setInterval(function () { if (!document.hidden) refresh(); }, 60000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
+  }
+})();
+</script>
+</body>
+</html>
